@@ -1,5 +1,6 @@
 import sys
 import time
+import datetime
 import numpy as np
 import evaluate
 from datasets import load_dataset
@@ -7,6 +8,8 @@ from transformers import AutoTokenizer, AutoConfig, DataCollatorWithPadding, \
     AutoModelForSequenceClassification, TrainingArguments, Trainer
 from google.colab import drive
 import wandb
+import shutil
+
 
 drive.mount('/content/gdrive')
 OUTPUT_DIR = '/content/gdrive/MyDrive/anlp_ex1'
@@ -37,16 +40,16 @@ class SingleFineTuneExperiment:
         training_args = TrainingArguments(output_dir=OUTPUT_DIR,
                                           evaluation_strategy="epoch",
                                           seed=self.seed,
-                                          save_total_limit=1)
+                                          save_strategy="no")
         self.trainer = Trainer(model=self.model,
                                args=training_args,
                                train_dataset=self.train_dataset,
                                eval_dataset=self.eval_dataset,
                                compute_metrics=self.compute_metrics,
-                               data_collator=DataCollatorWithPadding(self.tokenizer,
-                                                                     padding=True))
+                               tokenizer=self.tokenizer)
         train_start = time.time()
         self.trainer.train()
+        self.trainer.save_model()
         train_end = time.time()
         return train_end - train_start
 
@@ -96,27 +99,33 @@ class FineTuneExperimentManager:
         if num_predict_samples > 0:
             self.test_dataset = self.test_dataset.select(range(num_predict_samples))
 
-    def get_results_dict(self):
-        return {"mean": round(np.mean(self.accuracy), 3),
-                "std": round(np.std(self.accuracy), 3),
-                "best_accuracy": round(max(self.accuracy), 3),
-                "best_exp": self.exps[np.argmax(self.accuracy)],
-                "train_time": self.total_train_time}
+    def get_results_dict(self, accuracy, best_accuracy, best_exp, total_train_time):
+        return {"mean": round(np.mean(accuracy), 3),
+                "std": round(np.std(accuracy), 3),
+                "best_accuracy": best_accuracy,
+                "best_exp": best_exp,
+                "train_time": total_train_time}
 
     def run_exps(self, num_seeds):
-        self.accuracy, self.exps, self.total_train_time = [], [], 0
+        accuracy, best_exp, best_accuracy, total_train_time = [], None, 0, 0
         for seed in range(num_seeds):
-            wandb.init(project='anlp_ex1_19.05', name=f'{self.model_name}_seed_{seed}')
             cur_exp = SingleFineTuneExperiment(self.model, self.tokenizer,
                                                self.metric, seed,
                                                self.train_dataset, self.eval_dataset,
                                                self.test_dataset)
-            self.total_train_time += cur_exp.train()
-            self.accuracy.append(cur_exp.evaluate())
-            self.exps.append(cur_exp)
+            if seed == 0:
+                wandb.init(project='anlp_ex1_19.05',
+                           name=f'{datetime.datetime.now().strftime("%H:%M:%S")}_{self.model_name}_seed_{seed}')
+            total_train_time += cur_exp.train()
+            cur_exp_accuracy = cur_exp.evaluate()
+            accuracy.append(cur_exp_accuracy)
+            if seed == 0:
+                wandb.finish()
+            if cur_exp_accuracy > best_accuracy:
+                best_exp = cur_exp
+                best_accuracy = cur_exp_accuracy
 
-        wandb.finish()
-        exp_results = self.get_results_dict()
+        exp_results = self.get_results_dict(accuracy, best_accuracy, best_exp, total_train_time)
         return exp_results
 
 
