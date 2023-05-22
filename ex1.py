@@ -6,13 +6,12 @@ import evaluate
 from datasets import load_dataset
 from transformers import AutoTokenizer, AutoConfig, DataCollatorWithPadding, \
     AutoModelForSequenceClassification, TrainingArguments, Trainer
-from google.colab import drive
-import wandb
+# from google.colab import drive
+# import wandb
 import shutil
 
 
-drive.mount('/content/gdrive')
-OUTPUT_DIR = '/content/gdrive/MyDrive/anlp_ex1'
+OUTPUT_DIR = '/content/out/'
 MODEL_NAMES = ["bert-base-uncased", "roberta-base",
                "google/electra-base-generator"]
 SA_DATASET = "sst2"
@@ -113,14 +112,14 @@ class FineTuneExperimentManager:
                                                self.metric, seed,
                                                self.train_dataset, self.eval_dataset,
                                                self.test_dataset)
-            if seed == 0:
-                wandb.init(project='anlp_ex1_19.05',
-                           name=f'{datetime.datetime.now().strftime("%H:%M:%S")}_{self.model_name}_seed_{seed}')
+            # if seed == 0:
+            #     wandb.init(project='anlp_ex1_21.05',
+            #                name=f'{datetime.datetime.now().strftime("%H:%M:%S")}_{self.model_name}_seed_{seed}')
             total_train_time += cur_exp.train()
             cur_exp_accuracy = cur_exp.evaluate()
             accuracy.append(cur_exp_accuracy)
-            if seed == 0:
-                wandb.finish()
+            # if seed == 0:
+            #     wandb.finish()
             if cur_exp_accuracy > best_accuracy:
                 best_exp = cur_exp
                 best_accuracy = cur_exp_accuracy
@@ -172,4 +171,4 @@ if __name__ == "__main__":
     assert len(sys.argv) == 5
     main(num_seeds=int(sys.argv[1]), num_train_samples=int(sys.argv[2]),
          num_valid_samples=int(sys.argv[3]), num_predict_samples=int(sys.argv[4]))
-    wandb.login()
+    # wandb.login()
