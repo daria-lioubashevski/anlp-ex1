@@ -8,7 +8,6 @@ from transformers import AutoTokenizer, AutoConfig, DataCollatorWithPadding, \
     AutoModelForSequenceClassification, TrainingArguments, Trainer
 # from google.colab import drive
 # import wandb
-import shutil
 
 
 OUTPUT_DIR = '/content/out/'
@@ -20,6 +19,10 @@ PREDICTIONS_FILE_NAME = "prediction.txt"
 
 
 class SingleFineTuneExperiment:
+    """
+    This class represents a single fine-tuning experiment, given a model, evaluation metric,
+    tokenized datasets and seed.
+    """
     def __init__(self, model, tokenizer, metric, seed, train_dataset,
                  eval_dataset, test_dataset):
         self.model = model
@@ -67,6 +70,12 @@ class SingleFineTuneExperiment:
 
 
 class FineTuneExperimentManager:
+    """
+    This class represents a fine-tuning experiment manager, which is responsible for
+    running and comparing multiple experiments (each with a different seed) with
+    the same model, dataset and evaluation metric.
+    """
+
     def __init__(self, model_name, dataset_name, num_train_samples,
                  num_valid_samples, num_predict_samples):
         self.raw_dataset = load_dataset(dataset_name)
